@@ -1,0 +1,67 @@
+<style type="text/css" media="screen">
+    .time_entry_form_field {
+        width: 35px;
+    }
+
+    .activity td {
+        padding: left 10px;
+    }
+
+</style>
+<h2>Timesheet for <%= @current_user.name %></h2>
+
+<h4><%= link_to "<-", :week_num => @week - 1 %> <%= @day_range.first.to_s(:long) %> - <%= @day_range.last.to_s(:long) %> <%= link_to "->", :week_num => @week + 1 %></h4>
+
+<% form_tag :controller => "weekly_time_entries", :action => "update" do -%>
+    <%= hidden_field_tag :year, @year %>
+    <%= hidden_field_tag :week_num, @week %>
+    <table border="0" cellspacing="5" cellpadding="5">
+      <!-- Header -->
+      <tr>
+        <th><!-- Project --></th>
+        <% @day_range.each do  |day| %>
+            <th>
+              <small> <%= day.strftime('%a') %> <br/> <%= day.strftime('%d %b') %>
+            </th>
+            </small>
+        <% end %>
+        <th>Total</th>
+      </tr>
+      <% @current_user.projects.each do |project| %>
+          <% @project = project %>
+          <% fields_for "project_id[]", @project.id do |project_form| %>
+              <tr>
+                <td><%= project.name %></td>
+              </tr>
+              <% project.activities.each do |activity| %>
+                <% entries = @time_entries.select{|e| e.project == project} %>
+                  <% project_form.fields_for "activity_id[]", activity.id do |activity_form| -%>
+                      <tr>
+                        <td class="activity">
+                          <small><%= activity.name %></small>
+                        </td>
+                        <% @day_range.each do |day| %>
+                            <% @day = day %>
+                            <td align=middle>
+                              <%= activity_form.text_field day, {:value => hours_today(entries, day, activity), :class => "time_entry_form_field"} %>
+                            </td>
+                        <% end %>
+                    <% end %>
+                    <td align=right>
+                      <%= link_to entries.select{|e| e.activity == activity}.sum(&:hours), :controller => :timelog, :action => :details, :from => @week_start, :to => @week_end, :project_id => @project.id  %>
+                    </td>
+                  </tr>
+              <% end %>
+          <% end %>
+      <% end %>
+      <!-- Total row -->
+      <tr>
+        <td>Weeks Total</td>
+        <% @day_range.each do |day| %>
+            <td align=middle><%= link_to @time_entries.select{ |e| e.spent_on == day }.sum(&:hours), :controller => :timelog, :action => :details, :from => day, :to => day %></td>
+        <% end %>
+        <td align=right><%= link_to @time_entries.sum(&:hours), :controller => :timelog, :action => :details,  :from => @week_start, :to => @week_end %> </td>
+      </tr>
+    </table>
+    <%= submit_tag %>
+<% end -%>
